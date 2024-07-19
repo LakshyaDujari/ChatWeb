@@ -19,6 +19,6 @@ from django.urls import path,include
 from login import views
 urlpatterns = [
     path("admin/", admin.site.urls),
-        # 👇 add your myapi app urls path here
-    path('test/', views.hello_world, name='hello_world'),
+    path('login/', include('django.contrib.auth.urls')),
+    path('login/', include('login.urls')),
 ]
