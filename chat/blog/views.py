@@ -65,3 +65,49 @@ def get_blog(request):
         return Response(blog_data, status=200)
     except Exception as e:
         return Response({'error': 'Error fetching blogs','description':str(e)}, status=400)
+    
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication,SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def update_blog(request):
+    try:
+        auth_verify = loginviews.valid_user(request)[0]
+        if(auth_verify[0] == False):
+            return auth_verify[1]
+        blog_id = request.data.get('blog_id')
+        title = request.data.get('title')
+        content = request.data.get('content')
+        image_objs = request.FILES.getlist('image')
+        image_paths = []
+        for image in image_objs:
+            image_name = str(uuid.uuid4()) + '.' + image.name.split('.')[-1]
+            image_path = os.path.join(settings.MEDIA_ROOT, image_name)
+            if not os.path.exists(settings.MEDIA_ROOT):
+                os.makedirs(settings.MEDIA_ROOT)
+            with open(image_path, 'wb') as f:
+                for chunk in image.chunks():
+                    f.write(chunk)
+            image_paths.append(image_path)
+        blog = blogmodels.Blog.objects.get(id=blog_id)
+        blog.title = title
+        blog.content = content
+        blog.img_objec = image_paths
+        blog.save()
+        return Response({'message': 'Blog updated successfully'}, status=200)
+    except Exception as e:
+        return Response({'error': 'Error updating blog','description':str(e)}, status=400)
+    
+@api_view(['DELETE'])
+@authentication_classes([TokenAuthentication,SessionAuthentication])
+@permission_classes([IsAuthenticated])
+def delete_blog(request):
+    try:
+        auth_verify = loginviews.valid_user(request)[0]
+        if(auth_verify[0] == False):
+            return auth_verify[1]
+        blog_id = request.data.get('blog_id')
+        blog = blogmodels.Blog.objects.get(id=blog_id)
+        blog.delete()
+        return Response({'message': 'Blog deleted successfully'}, status=200)
+    except Exception as e:
+        return Response({'error': 'Error deleting blog','description':str(e)}, status=400)
