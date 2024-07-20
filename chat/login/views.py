@@ -1,4 +1,6 @@
+import django
 from django.http import HttpResponseBadRequest
+from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render,redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -14,69 +16,83 @@ from login import models
 @authentication_classes([TokenAuthentication,SessionAuthentication])
 @permission_classes([IsAuthenticated])
 def hello_world(request):
-    token = request.auth.credentials.get('Token')
-    return Response({'message': 'Hello, world!'})
+    try:  
+        token = request.headers.get('Authorization').split(' ')[1]
+        session_data = models.Session.objects.get(token=token)
+        if(session_data and session_data.isActive and session_data.ip == request.META.get('REMOTE_ADDR')):
+            return Response({'message': 'Hello, world!'})
+        else:
+            return Response({'error': 'User not Authorized'}, status=400)
+    except:
+        return Response({'error': 'User not Authorized'}, status=400)
 
-
-@api_view(['POST'])
-def login2(request):
-    username = request.data.get('username')
-    password = request.data.get('password')
-    # Check if the user exists in the database
-    try:
-        user_info = models.User.objects.get(username=username)
-    except models.User.DoesNotExist:
-        return HttpResponseBadRequest("User information not found")
-    if password == user_info.password:
-        # token, _ = Token.objects.get_or_create(user_info)
-        token = Token.generate_key()
-        models.Session.objects.create(ip=request.META.get('REMOTE_ADDR'), user=user_info, isActive=True, sessionId=token)
-        request.user = user_info
-        return Response({'token': token})
-    else:
-        return Response({'error': 'Invalid Credentials'}, status=400)
-    
-    
-def validate_token(token):
-    session = models.Session.objects.get(token=token)
-    if session:
-        return True
-    else:
-        return False
-
-
+@csrf_exempt
 @api_view(['POST'])
 def login_user(request):
-    uname = request.data.get('username')
-    password = request.data.get('password')
-    if(uname == '' or password == ''):
-        return Response({'error': 'All fields are required'}, status=400)
-    user = authenticate(request,username=uname, password=password)
-    if user is None:
+    try:
+        uname = request.data.get('username')
+        password = request.data.get('password')
+        if(uname == '' or password == ''):
+            return Response({'error': 'All fields are required'}, status=400)
+        user = authenticate(request,username=uname, password=password)
+        if user is None:
+            return Response({'error': 'Invalid Credentials'}, status=400)
+        else:
+            login(request, user)
+            token, _ = Token.objects.get_or_create(user=user)
+            user_info = models.User.objects.get(username=user.username) 
+            models.Session.objects.update_or_create(ip=request.META.get('REMOTE_ADDR'), user=user_info, isActive=True, sessionId= django.middleware.csrf.get_token(request), token=token)
+            user_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'token': token.key,
+                'temp':django.middleware.csrf.get_token(request)
+                # Include any other fields you want to return
+            }
+            return Response(user_data, status=200)
+    except:
         return Response({'error': 'Invalid Credentials'}, status=400)
-    else:
-        login(request, user)
-        token, _ = Token.objects.get_or_create(user=user)
-        models.Session.objects.create(ip=request.META.get('REMOTE_ADDR'), user=user.username, isActive=True, sessionId=token)
-    return Response({'message': 'User logged in successfully','userInfo':user},200)
 
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication,SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def logout_user(request):
-    logout(request)
-    return Response({'message': 'User logged out successfully'},200)
+    try:
+        logout(request)
+        models.Session.objects.get(token=request.headers.get('Authorization').split(' ')[1]).delete()
+        return Response({'message': 'User logged out successfully'},200)
+    except:
+        return Response({'error': 'User not Authorized'}, status=400)
 
 @api_view(['POST'])
 def create_user(request):
-    uname = request.data.get('username')
-    email = request.data.get('email')
-    password = request.data.get('password')
-    phone = request.data.get('phone')
-    name = request.data.get('name')
-    if(uname == '' or email == '' or password == '' or phone == '' or name == ''):
-        return Response({'error': 'All fields are required'}, status=400)
-    if User.objects.filter(username=uname).exists():
-        return Response({'error': 'Username already exists'}, status=400)   
-    user = User.objects.create_user(uname, email, password)
-    user.save()
-    models.User.objects.create(username=uname, email=email, password=password, phone=phone, name=name)
-    
-    return Response({'message': 'User created successfully'})
+    try:
+        uname = request.data.get('username')
+        email = request.data.get('email')
+        password = request.data.get('password')
+        phone = request.data.get('phone')
+        name = request.data.get('name')
+        if(uname == '' or uname == None or email == '' or email == None or password == '' or password == None or phone == '' or phone == None or name == '' or name == None):
+            return Response({'error': 'All fields are required'}, status=400)
+        if User.objects.filter(username=uname).exists():
+            return Response({'error': 'Username already exists'}, status=400)   
+        user = User.objects.create_user(uname, email, password)
+        user.save()
+        models.User.objects.create(username=uname, email=email, password=password, phone=phone, name=name)
+        
+        return Response({'message': 'User created successfully'})
+    except:
+        return Response({'error': 'Invalid Credentials'}, status=400)
+
+def valid_user(request):
+    if(request.headers.get('Authorization') == None):
+        return False,Response({'error': 'Authorization header is required'}, status=400)
+    if(request.headers.get('Authorization').split(' ')[0] != 'Token'):
+        return False,Response({'error': 'Invalid Authorization header'}, status=400)
+    token = request.headers.get('Authorization').split(' ')[1]
+    session_data = models.Session.objects.get(token=token)
+    if(session_data and session_data.isActive and session_data.ip == request.META.get('REMOTE_ADDR')):
+        return True
+    else: 
+        return False,Response({'error': 'User not Authorized'}, status=400)
