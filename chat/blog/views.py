@@ -17,7 +17,7 @@ def create_blog(request):
     try:
         if(title == '' or content == ''):
             return Response({'error': 'All fields are required'}, status=400)
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         title = request.data.get('title')
@@ -46,7 +46,7 @@ def create_blog(request):
 @permission_classes([IsAuthenticated])
 def get_blog(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         token = request.headers.get('Authorization').split(' ')[1]
@@ -71,7 +71,7 @@ def get_blog(request):
 @permission_classes([IsAuthenticated])
 def update_blog(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         blog_id = request.data.get('blog_id')
@@ -102,7 +102,7 @@ def update_blog(request):
 @permission_classes([IsAuthenticated])
 def delete_blog(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         blog_id = request.data.get('blog_id')

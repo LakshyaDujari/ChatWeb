@@ -2,9 +2,10 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from blog import models as blogmodels
+from friend.models import Friends as FriendsModel
 from django.contrib.auth.models import User
 from login import views as loginviews
+from messaging import views as messagingviews
 # Create your views here.
 
 @api_view(['POST'])
@@ -12,23 +13,23 @@ from login import views as loginviews
 @permission_classes([IsAuthenticated])
 def add_friend(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         if(request.data.get('friend_id') == None):
             return Response({'error': 'Friend ID is required'}, status=400)
         friend_id = request.data.get('friend_id')
-        user = User.objects.get(id=auth_verify[1].id)
+        user = loginviews.get_user_from_token(request)
         friend = User.objects.get(id=friend_id)
         if(user == friend):
             return Response({'error': 'You cannot add yourself as a friend'}, status=400)
-        friend_request = blogmodels.Friends.objects.filter(user=user, friend=friend)
+        friend_request = FriendsModel.objects.filter(user=user, friend=friend)
         if friend_request.exists():
             return Response({'error': 'Friend request already sent'}, status=400)
-        friend_request = blogmodels.Friends.objects.filter(user=friend, friend=user)
+        friend_request = FriendsModel.objects.filter(user=friend, friend=user)
         if friend_request.exists():
             return Response({'error': 'You are already friends'}, status=400)
-        blogmodels.Friends.objects.create(user=user, friend=friend)
+        FriendsModel.objects.create(user=user, friend=friend)
         return Response({'message': 'Friend request sent'}, status=200)
     except Exception as e:
         return Response({'error': 'Error sending friend request','description':str(e)}, status=400)
@@ -38,11 +39,11 @@ def add_friend(request):
 @permission_classes([IsAuthenticated])
 def get_friend(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         user = User.objects.get(id=auth_verify[1].id)
-        friends = blogmodels.Friends.objects.filter(user=user, is_active=True)
+        friends = FriendsModel.objects.filter(user=user, is_active=True)
         friend_data = []
         for friend in friends:
             friend_data.append({
@@ -59,11 +60,11 @@ def get_friend(request):
 @permission_classes([IsAuthenticated])
 def get_friend_request(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         user = User.objects.get(id=auth_verify[1].id)
-        friends = blogmodels.Friends.objects.filter(friend=user, is_active=False)
+        friends = FriendsModel.objects.filter(friend=user, is_active=False)
         friend_data = []
         for friend in friends:
             friend_data.append({
@@ -79,7 +80,7 @@ def get_friend_request(request):
 @permission_classes([IsAuthenticated])
 def accept_friend_request(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         if(request.data.get('friend_id') == None):
@@ -87,10 +88,11 @@ def accept_friend_request(request):
         friend_id = request.data.get('friend_id')
         user = User.objects.get(id=auth_verify[1].id)
         friend = User.objects.get(id=friend_id)
-        friend_request = blogmodels.Friends.objects.filter(user=friend, friend=user, is_active=False)
+        friend_request = FriendsModel.objects.filter(user=friend, friend=user, is_active=False)
         if not friend_request.exists():
             return Response({'error': 'No friend request found'}, status=400)
         friend_request.update(is_active=True)
+        friend_request.update(msg_group=messagingviews.create_message_group())
         return Response({'message': 'Friend request accepted'}, status=200)
     except Exception as e:
         return Response({'error': 'Error accepting friend request','description':str(e)}, status=400)
@@ -100,7 +102,7 @@ def accept_friend_request(request):
 @permission_classes([IsAuthenticated])
 def reject_friend_request(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         friend_id = request.data.get('friend_id')
@@ -108,7 +110,7 @@ def reject_friend_request(request):
             return Response({'error': 'Friend ID is required'}, status=400)
         user = User.objects.get(id=auth_verify[1].id)
         friend = User.objects.get(id=friend_id)
-        friend_request = blogmodels.Friends.objects.filter(user=friend, friend=user, is_active=False)
+        friend_request = FriendsModel.objects.filter(user=friend, friend=user, is_active=False)
         if not friend_request.exists():
             return Response({'error': 'No friend request found'}, status=400)
         friend_request.delete()
@@ -121,7 +123,7 @@ def reject_friend_request(request):
 @permission_classes([IsAuthenticated])
 def unfriend(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         friend_id = request.data.get('friend_id')
@@ -129,7 +131,7 @@ def unfriend(request):
             return Response({'error': 'Friend ID is required'}, status=400)
         user = User.objects.get(id=auth_verify[1].id)
         friend = User.objects.get(id=friend_id)
-        friend_request = blogmodels.Friends.objects.filter(user=user, friend=friend, is_active=True)
+        friend_request = FriendsModel.objects.filter(user=user, friend=friend, is_active=True)
         if not friend_request.exists():
             return Response({'error': 'No friend found'}, status=400)
         friend_request.delete()
@@ -143,7 +145,7 @@ def unfriend(request):
 @permission_classes([IsAuthenticated])
 def get_all_users(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         users = User.objects.all()
@@ -163,11 +165,11 @@ def get_all_users(request):
 @permission_classes([IsAuthenticated])
 def get_all_friends(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         user = User.objects.get(id=auth_verify[1].id)
-        friends = blogmodels.Friends.objects.filter(user=user, is_active=True)
+        friends = FriendsModel.objects.filter(user=user, is_active=True)
         friend_data = []
         for friend in friends:
             friend_data.append({
@@ -184,7 +186,7 @@ def get_all_friends(request):
 @permission_classes([IsAuthenticated])
 def get_user(request):
     try:
-        auth_verify = loginviews.valid_user(request)[0]
+        auth_verify = loginviews.valid_user(request)
         if(auth_verify[0] == False):
             return auth_verify[1]
         user_name = request.GET.get('user_name')

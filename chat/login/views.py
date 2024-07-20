@@ -88,11 +88,15 @@ def create_user(request):
 def valid_user(request):
     if(request.headers.get('Authorization') == None):
         return False,Response({'error': 'Authorization header is required'}, status=400)
-    if(request.headers.get('Authorization').split(' ')[0] != 'Token'):
-        return False,Response({'error': 'Invalid Authorization header'}, status=400)
     token = request.headers.get('Authorization').split(' ')[1]
     session_data = models.Session.objects.get(token=token)
     if(session_data and session_data.isActive and session_data.ip == request.META.get('REMOTE_ADDR')):
-        return True
+        return True,session_data.user
     else: 
         return False,Response({'error': 'User not Authorized'}, status=400)
+    
+def get_user_from_token(request):
+    token = request.headers.get('Authorization').split(' ')[1]
+    session_data = models.Session.objects.get(token=token)
+    user = User.objects.get(username=session_data.user.username)
+    return user
