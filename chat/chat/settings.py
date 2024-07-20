@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "login",
     "blog",
+    "friend",
+    "messaging",
 ]
 
 MIDDLEWARE = [
