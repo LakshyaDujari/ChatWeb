@@ -10,7 +10,6 @@ from messaging import views as messagingviews
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
 def add_friend(request):
     try:
         auth_verify = loginviews.valid_user(request)
@@ -36,7 +35,6 @@ def add_friend(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
 def get_friend(request):
     try:
         auth_verify = loginviews.valid_user(request)
@@ -57,7 +55,6 @@ def get_friend(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
 def get_friend_request(request):
     try:
         auth_verify = loginviews.valid_user(request)
@@ -77,7 +74,6 @@ def get_friend_request(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
 def accept_friend_request(request):
     try:
         auth_verify = loginviews.valid_user(request)
@@ -99,7 +95,6 @@ def accept_friend_request(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
 def reject_friend_request(request):
     try:
         auth_verify = loginviews.valid_user(request)
@@ -109,7 +104,7 @@ def reject_friend_request(request):
         if(friend_id == None):
             return Response({'error': 'Friend ID is required'}, status=400)
         user = User.objects.get(id=auth_verify[1].id)
-        friend = User.objects.get(id=friend_id)
+        friend = User.objects.get(username=friend_id)
         friend_request = FriendsModel.objects.filter(user=friend, friend=user, is_active=False)
         if not friend_request.exists():
             return Response({'error': 'No friend request found'}, status=400)
@@ -120,7 +115,6 @@ def reject_friend_request(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
 def unfriend(request):
     try:
         auth_verify = loginviews.valid_user(request)
@@ -142,7 +136,6 @@ def unfriend(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
 def get_all_users(request):
     try:
         auth_verify = loginviews.valid_user(request)
@@ -162,7 +155,6 @@ def get_all_users(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
 def get_all_friends(request):
     try:
         auth_verify = loginviews.valid_user(request)
@@ -183,7 +175,6 @@ def get_all_friends(request):
 
 @api_view(['GET'])
 @authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
 def get_user(request):
     try:
         auth_verify = loginviews.valid_user(request)

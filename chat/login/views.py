@@ -1,30 +1,13 @@
 import django
-from django.http import HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render,redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.contrib import messages
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.authentication import TokenAuthentication, SessionAuthentication
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
 from login import models
-
-@api_view(['GET'])
-@authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
-def hello_world(request):
-    try:  
-        token = request.headers.get('Authorization').split(' ')[1]
-        session_data = models.Session.objects.get(token=token)
-        if(session_data and session_data.isActive and session_data.ip == request.META.get('REMOTE_ADDR')):
-            return Response({'message': 'Hello, world!'})
-        else:
-            return Response({'error': 'User not Authorized'}, status=400)
-    except:
-        return Response({'error': 'User not Authorized'}, status=400)
+from friend import models as friend_models
 
 @csrf_exempt
 @api_view(['POST'])
@@ -56,7 +39,6 @@ def login_user(request):
 
 @api_view(['POST'])
 @authentication_classes([TokenAuthentication,SessionAuthentication])
-@permission_classes([IsAuthenticated])
 def logout_user(request):
     try:
         logout(request)
@@ -64,7 +46,7 @@ def logout_user(request):
         return Response({'message': 'User logged out successfully'},200)
     except:
         return Response({'error': 'User not Authorized'}, status=400)
-
+    
 @api_view(['POST'])
 def create_user(request):
     try:
@@ -84,6 +66,38 @@ def create_user(request):
         return Response({'message': 'User created successfully'})
     except:
         return Response({'error': 'Invalid Credentials'}, status=400)
+
+@api_view(['POST'])
+@authentication_classes([TokenAuthentication,SessionAuthentication])
+def get_user_list(request):
+    try:
+        auth_verify = valid_user(request)
+        if(auth_verify[0] == False):
+            return auth_verify[1]
+        search_query = request.data.get('search_query')
+        if search_query:
+            users = User.objects.filter(username__icontains=search_query)
+            main_user = get_user_from_token(request)
+            user_list = []
+            for user in users:
+                isfriend = False
+                try:
+                    isfriend = friend_models.Friends.objects.get(user=main_user, friend=user).is_active
+                except:
+                    isfriend = False
+                    
+                user_data = {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'friend': isfriend,
+                }
+                user_list.append(user_data)
+            return Response(user_list, status=200)
+        else:
+            return Response({'error': 'Search query is required'}, status=400)
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
 
 def valid_user(request):
     if(request.headers.get('Authorization') == None):
