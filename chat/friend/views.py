@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from login.models import User
 from friend.models import Friends as FriendsModel
 from login import views as loginviews
+from django.db.models import Q
 from messaging import views as messagingviews
 # Create your views here.
 
@@ -57,7 +58,8 @@ def get_friend_request(request):
         for friend in friends:
             friend_data.append({
                 'username': friend.user.username,
-                'email': friend.user.email
+                'email': friend.user.email,
+                'friend_id': friend.user.id
             })
         return Response({'friend_requests': friend_data}, status=200)
     except Exception as e:
@@ -75,8 +77,8 @@ def accept_friend_request(request):
         friend_request = FriendsModel.objects.filter(user=friend, friend=user, is_active=False)
         if not friend_request.exists():
             return Response({'error': 'No friend request found'}, status=400)
-        friend_request.update(is_active=True)
-        friend_request.update(msg_group=messagingviews.create_message_group())
+        msg_group = messagingviews.create_message_group()
+        friend_request.update(is_active = True,msg_group=msg_group.id)
         return Response({'message': 'Friend request accepted'}, status=200)
     except Exception as e:
         return Response({'error': 'Error accepting friend request','description':str(e)}, status=400)
@@ -139,7 +141,9 @@ def get_all_users(request):
 def get_all_friends(request):
     try:
         user = request.user
-        friends = FriendsModel.objects.filter(user=user, is_active=True)
+        friends = FriendsModel.objects.filter(
+            Q(user=user, is_active=True) | Q(friend=user, is_active=True)
+        )
         friend_data = []
         for friend in friends:
             friend_data.append({

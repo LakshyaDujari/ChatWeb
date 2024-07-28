@@ -22,8 +22,8 @@ from messaging import routing
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
-    "websocket": AllowedHostsOriginValidator(
+    "websocket": 
         AuthMiddlewareStack(URLRouter(routing.websocket_urlpatterns))
-        ),
+        
 })
 

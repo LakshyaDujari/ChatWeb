@@ -37,7 +37,7 @@ def create_blog(request):
 @api_view(['GET','POST'])
 @permission_classes([IsAuthenticated])
 def get_blog(request):
-    if(len(request.data) != 0 ):
+    if(len(request.data) != 0):
         try:
             user_info = request.data.get('userId')
             blogs = blogmodels.Blog.objects.filter(user=user_info)

@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from login import views as loginviews
 from friend import models as friendmodels
+from django.db.models import Q
 import uuid
 from messaging.models import *
 
@@ -38,16 +39,20 @@ def send_msg2grp(request):
 
 def create_message_group():
     group_name = uuid.uuid4()
-    MessageGroup.objects.create(group_name=group_name)
-    return group_name
+    msg_grp = MessageGroup.objects.create(group_name=group_name)
+    return msg_grp
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_all_msg_groups(request):
     user = request.user
-    all_friends = friendmodels.Friends.objects.filter(user=user, is_active=True)
+    all_friends = friendmodels.Friends.objects.filter(
+            Q(user=user, is_active=True) | Q(friend=user, is_active=True)
+        )
     group_data = []
     for friend in all_friends:
+        msg_group = friend.msg_group
+        MessageGroup.objects.get_or_create(group_name=msg_group)
         group_data.append({
             'group_name': friend.msg_group.group_name,
             'friend': friend.friend.username
