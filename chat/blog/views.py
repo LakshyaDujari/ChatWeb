@@ -1,24 +1,19 @@
+# Create your views here.
 import base64
 import os
-import cv2
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.authentication import TokenAuthentication, SessionAuthentication
+from rest_framework.decorators import api_view,permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from blog import models as blogmodels
-from django.contrib.auth.models import User
 import uuid
 from login import views as loginviews
 from django.conf import settings
 
 # Create your views here.
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication,SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def create_blog(request):
     try:
-        auth_verify = loginviews.valid_user(request)
-        if(auth_verify[0] == False):
-            return auth_verify[1]
         title = request.data.get('title')
         content = request.data.get('content')
         if(title == '' or content == ''):
@@ -33,56 +28,74 @@ def create_blog(request):
                 for chunk in image.chunks():
                     f.write(chunk)
             image_paths.append(image_path)
-            
-        token = request.headers.get('Authorization').split(' ')[1]
-        user_info = User.objects.get(auth_token=token)
-        blogmodels.Blog.objects.create(title=title, content=content, user=user_info,img_objec=image_paths)
+        user = request.user
+        blogmodels.Blog.objects.create(title=title, content=content, user=user,img_path=image_paths)
         return Response({'message': 'Blog created successfully'}, status=200)
     except Exception as e:
         return Response({'error': 'Error creating blog','description':str(e)}, status=400)
     
-@api_view(['GET'])
-@authentication_classes([TokenAuthentication,SessionAuthentication])
+@api_view(['GET','POST'])
+@permission_classes([IsAuthenticated])
 def get_blog(request):
-    try:
-        auth_verify = loginviews.valid_user(request)
-        if(auth_verify[0] == False):
-            return auth_verify[1]
-        # user_info = User.objects.get(username=request.data.get('username'))
-        token = request.headers.get('Authorization').split(' ')[1]
-        user_info = User.objects.get(auth_token=token)
-        blogs = blogmodels.Blog.objects.filter(user=user_info)
-        blog_data = []
-        for blog in blogs:
-            decoded_images = []
-            for imagePath in blog.img_objec:
-                try:
-                    with open(imagePath, "rb") as image_file:
-                        image_name = os.path.basename(imagePath)
-                        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-                        mime_type = f"data:image/{image_name.split('.')[-1]};base64,"
-                        decoded_images.append(mime_type + encoded_string)
-                except FileNotFoundError:
-                    return Response({'error': 'Image not found'}, status=400)
-            blog_data.append({
-                'title': blog.title,
-                'content': blog.content,
-                'user': blog.user.username,
-                'images': decoded_images,
-                'created_at': blog.created_at,
-                'updated_at': blog.updated_at
-            })
-        return Response(blog_data, status=200)
-    except Exception as e:
-        return Response({'error': 'Error fetching blogs','description':str(e)}, status=400)
+    if(len(request.data) != 0 ):
+        try:
+            user_info = request.data.get('userId')
+            blogs = blogmodels.Blog.objects.filter(user=user_info)
+            blog_data = []
+            for blog in blogs:
+                decoded_images = []
+                for imagePath in blog.img_path:
+                    try:
+                        with open(imagePath, "rb") as image_file:
+                            image_name = os.path.basename(imagePath)
+                            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                            mime_type = f"data:image/{image_name.split('.')[-1]};base64,"
+                            decoded_images.append(mime_type + encoded_string)
+                    except FileNotFoundError:
+                        return Response({'error': 'Image not found'}, status=400)
+                blog_data.append({
+                    'title': blog.title,
+                    'content': blog.content,
+                    'user': blog.user.username,
+                    'images': decoded_images,
+                    'created_at': blog.created_at,
+                    'updated_at': blog.updated_at
+                })
+            return Response(blog_data, status=200)
+        except Exception as e:
+            return Response({'error': 'Error fetching blogs','description':str(e)}, status=400) 
+    else:
+        try:
+            user_info = request.user
+            blogs = blogmodels.Blog.objects.filter(user=user_info)
+            blog_data = []
+            for blog in blogs:
+                decoded_images = []
+                for imagePath in blog.img_path:
+                    try:
+                        with open(imagePath, "rb") as image_file:
+                            image_name = os.path.basename(imagePath)
+                            encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+                            mime_type = f"data:image/{image_name.split('.')[-1]};base64,"
+                            decoded_images.append(mime_type + encoded_string)
+                    except FileNotFoundError:
+                        return Response({'error': 'Image not found'}, status=400)
+                blog_data.append({
+                    'title': blog.title,
+                    'content': blog.content,
+                    'user': blog.user.username,
+                    'images': decoded_images,
+                    'created_at': blog.created_at,
+                    'updated_at': blog.updated_at
+                })
+            return Response(blog_data, status=200)
+        except Exception as e:
+            return Response({'error': 'Error fetching blogs','description':str(e)}, status=400)
     
 @api_view(['POST'])
-@authentication_classes([TokenAuthentication,SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def update_blog(request):
     try:
-        auth_verify = loginviews.valid_user(request)
-        if(auth_verify[0] == False):
-            return auth_verify[1]
         blog_id = request.data.get('blog_id')
         title = request.data.get('title')
         content = request.data.get('content')
@@ -107,12 +120,9 @@ def update_blog(request):
         return Response({'error': 'Error updating blog','description':str(e)}, status=400)
     
 @api_view(['DELETE'])
-@authentication_classes([TokenAuthentication,SessionAuthentication])
+@permission_classes([IsAuthenticated])
 def delete_blog(request):
     try:
-        auth_verify = loginviews.valid_user(request)
-        if(auth_verify[0] == False):
-            return auth_verify[1]
         blog_id = request.data.get('blog_id')
         blog = blogmodels.Blog.objects.get(id=blog_id)
         blog.delete()

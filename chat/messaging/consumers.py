@@ -1,12 +1,13 @@
 from channels.generic.websocket import WebsocketConsumer
 from messaging import models as messaging_models
-from django.contrib.auth.models import User
+from login.models import User
 from asgiref.sync import async_to_sync
 import json
 
 class ChatConsumer(WebsocketConsumer):
     def connect(self):
         self.user = self.scope['user']
+        token = self.get_token_from_scope(self.scope)
         group_name = self.scope['url_route']['kwargs']['group_name']
         username = self.scope['url_route']['kwargs']['user_name']
         self.group_name = group_name
@@ -63,3 +64,15 @@ class ChatConsumer(WebsocketConsumer):
             'timestamp': message.timestamp,
         }
         self.send(text_data=context)
+        
+    def get_token_from_scope(self,scope):
+    # Iterate over headers in the scope
+        for header in scope['headers']:
+            # Decode header name and value from bytes to string
+            name, value = header[0].decode(), header[1].decode()
+            # Check if this is the Authorization header
+            if name == 'authorization':
+                # Assuming the header is in the format "Bearer <token>", split and return the token
+                token = value.split(' ')[1]
+                return token
+        return None
