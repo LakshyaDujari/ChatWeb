@@ -37,9 +37,9 @@ def send_msg2grp(request):
     Message.objects.create(group=group_name, author=author, body=body)
     return Response({'message': 'Message sent'}, status=200)
 
-def create_message_group():
+def create_message_group(friend_request):
     group_name = uuid.uuid4()
-    msg_grp = MessageGroup.objects.create(group_name=group_name)
+    msg_grp = MessageGroup.objects.create(group_name=group_name,members=[friend_request.user,friend_request.friend])
     return msg_grp
 
 @api_view(['GET'])

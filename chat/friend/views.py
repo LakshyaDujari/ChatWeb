@@ -77,7 +77,7 @@ def accept_friend_request(request):
         friend_request = FriendsModel.objects.filter(user=friend, friend=user, is_active=False)
         if not friend_request.exists():
             return Response({'error': 'No friend request found'}, status=400)
-        msg_group = messagingviews.create_message_group()
+        msg_group = messagingviews.create_message_group(friend_request)
         friend_request.update(is_active = True,msg_group=msg_group.id)
         return Response({'message': 'Friend request accepted'}, status=200)
     except Exception as e:
