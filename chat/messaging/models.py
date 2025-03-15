@@ -3,6 +3,7 @@ from login.models import User
 # Create your models here.
 class MessageGroup(models.Model):
     group_name = models.CharField(max_length=128,unique=True)
+    display_name = models.CharField(max_length=128, default='Unnamed Group')
     members = models.ManyToManyField(User,related_name='chat_groups')
     def __str__(self):
         return self.group_name

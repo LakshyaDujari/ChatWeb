@@ -1,3 +1,4 @@
+
 # Create your views here.
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -74,11 +75,15 @@ def accept_friend_request(request):
         friend_id = request.data.get('friend_id')
         user = request.user
         friend = User.objects.get(id=friend_id)
-        friend_request = FriendsModel.objects.filter(user=friend, friend=user, is_active=False)
-        if not friend_request.exists():
+        try:
+            friend_request = FriendsModel.objects.get(user=friend, friend=user, is_active=False)
+        except FriendsModel.DoesNotExist:
             return Response({'error': 'No friend request found'}, status=400)
         msg_group = messagingviews.create_message_group(friend_request)
-        friend_request.update(is_active = True,msg_group=msg_group.id)
+                # Update the friend request
+        friend_request.is_active = True
+        friend_request.msg_group = msg_group
+        friend_request.save()
         return Response({'message': 'Friend request accepted'}, status=200)
     except Exception as e:
         return Response({'error': 'Error accepting friend request','description':str(e)}, status=400)
@@ -92,8 +97,9 @@ def reject_friend_request(request):
             return Response({'error': 'Friend ID is required'}, status=400)
         user = request.user
         friend = User.objects.get(username=friend_id)
-        friend_request = FriendsModel.objects.filter(user=friend, friend=user, is_active=False)
-        if not friend_request.exists():
+        try:
+            friend_request = FriendsModel.objects.get(user=friend, friend=user, is_active=False)
+        except FriendsModel.DoesNotExist:
             return Response({'error': 'No friend request found'}, status=400)
         friend_request.delete()
         return Response({'message': 'Friend request rejected'}, status=200)
@@ -109,9 +115,10 @@ def unfriend(request):
             return Response({'error': 'Friend ID is required'}, status=400)
         user = request.user
         friend = User.objects.get(id=friend_id)
-        friend_request = FriendsModel.objects.filter(user=user, friend=friend, is_active=True)
-        if not friend_request.exists():
-            return Response({'error': 'No friend found'}, status=400)
+        try:
+            friend_request = FriendsModel.objects.get(user=friend, friend=user, is_active=False)
+        except FriendsModel.DoesNotExist:
+            return Response({'error': 'No friend request found'}, status=400)
         friend_request.delete()
         return Response({'message': 'Friend removed'}, status=200)
     except Exception as e:

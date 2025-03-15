@@ -28,6 +28,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     '192.168.29.133',
+    "http://localhost:8000",
     '127.0.0.1',
 ]
 
@@ -85,7 +86,7 @@ TEMPLATES = [
 ]
 
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
+    'DEFAULT_AUTHENTICATION_CLASSES': (      
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         # 'rest_framework.authentication.TokenAuthentication',
     )
@@ -194,6 +195,17 @@ USE_TZ = True
 STATIC_URL = "static/"
 MEDIA_ROOT = "/blog/media"
 MEDIA_ROOT = Path.joinpath(BASE_DIR, "blog/media")
+
+# Email settings
+# settings.py
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtpout.secureserver.net' 
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False 
+EMAIL_USE_SSL = True 
+EMAIL_HOST_USER = 'support-chat-box@unikonnect.in'
+EMAIL_HOST_PASSWORD = 'dorfec-Nivwe9-hipvut'
+DEFAULT_FROM_EMAIL = 'support-chat-box@unikonnect.in'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 

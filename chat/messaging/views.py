@@ -20,7 +20,8 @@ def get_group_chat(request):
         message_data.append({
             'author': message.author.username,
             'body': message.body,
-            'timestamp': message.timestamp
+            'timestamp': message.timestamp,
+            'display_name': group_name.display_name
         })
     return Response({'messages': message_data}, status=200)
 
@@ -37,24 +38,35 @@ def send_msg2grp(request):
     Message.objects.create(group=group_name, author=author, body=body)
     return Response({'message': 'Message sent'}, status=200)
 
-def create_message_group(friend_request):
-    group_name = uuid.uuid4()
-    msg_grp = MessageGroup.objects.create(group_name=group_name,members=[friend_request.user,friend_request.friend])
+def create_message_group(friend_request, display_name=None):
+    while True:
+        group_name = uuid.uuid4()
+        if not MessageGroup.objects.filter(group_name=group_name).exists():
+            break
+
+    msg_grp = MessageGroup.objects.create(group_name=group_name, display_name=display_name)
+    msg_grp.members.set([friend_request.user, friend_request.friend])
     return msg_grp
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_all_msg_groups(request):
-    user = request.user
-    all_friends = friendmodels.Friends.objects.filter(
+    try:
+        user = request.user
+        all_friends = friendmodels.Friends.objects.filter(
             Q(user=user, is_active=True) | Q(friend=user, is_active=True)
         )
-    group_data = []
-    for friend in all_friends:
-        msg_group = friend.msg_group
-        MessageGroup.objects.get_or_create(group_name=msg_group)
-        group_data.append({
-            'group_name': friend.msg_group.group_name,
-            'friend': friend.friend.username
-        })
-    return Response({'groups': group_data}, status=200)
+        group_data = []
+        for friend in all_friends:
+            msg_group, created = MessageGroup.objects.get_or_create(
+                group_name=friend.msg_group.group_name,
+                defaults={'display_name': friend.friend.username}
+            )
+            group_data.append({
+                'group_name': msg_group.group_name,
+                'display_name': msg_group.display_name if msg_group.display_name != 'Unnamed Group' else friend.friend.username,
+                'friend': friend.friend.username
+            })
+        return Response({'groups': group_data}, status=200)
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)

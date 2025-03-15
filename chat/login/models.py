@@ -66,5 +66,15 @@ def create_user_profile(sender,instance,created,**kwargs):
 def save_user_profile(sender,instance,**kwargs):
     instance.userdetail.save()
     
+class OTP(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    otp = models.CharField(max_length=6, unique=True)
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.otp
+
 post_save.connect(create_user_profile, sender=User)
 post_save.connect(save_user_profile, sender=User)
